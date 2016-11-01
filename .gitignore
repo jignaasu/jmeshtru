@@ -13,3 +13,10 @@ hs_err_pid*
 
 # target folder of maven
 target/
+
+#IDE settings
+.idea/
+.project
+.metadata
+.classpath
+
