@@ -1,12 +1,22 @@
+import static java.time.format.DateTimeFormatter.*;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.nio.charset.Charset;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Base64;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.utils.HttpClientUtils;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.json.JSONArray;
@@ -17,28 +27,33 @@ import org.json.JSONObject;
  */
 public class HttpPostTest {
 
-	private static final String URL = "https://api.budgetair" +
-			".nl/flightbooking/cid-317f1f15-09e8-40a1-a1a4-80b85ab2b47f/passengersv2/6f2aaaa4-8cec-4fd9-ab45-aee684c42f81";
-
-	private static final String inputJson = "{\"Items\":[{\"Reference\":0,\"Person\":{\"GenderType\":\"Male\"," +
-			"\"FirstName\":\"Prakash\",\"LastName\":\"Azhagappan\",\"Dob\":\"2000-04-13T00:00:00\",\"MinValidDob\":\"1916-01-13T00:00:00\",\"MaxValidDob\":\"2005-01-30T00:00:00\"},\"PassengerType\":\"Adult\",\"SelectedBaggageService\":null,\"DefaultBaggage\":{\"Included\":true,\"Quantity\":1,\"Weight\":0,\"Unit\":\"K\",\"Amount\":0},\"BaggageServiceOptions\":null,\"IsMealOptionAvailable\":true,\"IsSeatOptionAvailable\":true,\"IsFrequentFlyerAvailable\":true,\"FrequentFlyer\":{\"AirlineCode\":null,\"FrequentFlyerNumber\":null},\"SelectedMealOption\":{\"Code\":\"\"},\"SelectedSeatOption\":{\"Code\":\"\"},\"IsPassportMandatory\":false,\"IdentityDocument\":null,\"RedressNumber\":null}],\"SelectedPriorityBoardingService\":null,\"SubscribePassengersToFrequentFlyer\":null,\"EnableFrequentFlyerSubscription\":false,\"ZeroBaggageEnabled\":false,\"ZeroBaggageText\":null}";
+	private static final String inputJson = "input_json";
 
 	public static void main(String[] args) throws Exception {
-		final HttpPost httpPost = new HttpPost(URL);
+		final HttpPost httpPost = new HttpPost("url");
 		httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+		String date = RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneId.of("GMT")));
+		httpPost.setHeader(HttpHeaders.DATE, date);
+		httpPost.setHeader(HttpHeaders.AUTHORIZATION, getAuthorizationHeader(date));
 		httpPost.setEntity(new StringEntity(inputJson));
-		final CloseableHttpResponse execute = HttpClients.createDefault().execute(httpPost);
-		new BufferedReader(new InputStreamReader(execute.getEntity().getContent())).lines().forEach(System.out::println);
+		try (CloseableHttpResponse execute = HttpClients.createDefault().execute(httpPost)) {
+			new BufferedReader(new InputStreamReader(execute.getEntity().getContent())).lines().forEach(System.out::println);
+		}
 	}
 
-//	private static void testPost() throws Exception {
-//		HttpPost postRequest = new HttpPost("http://jsonplaceholder.typicode.com/posts");
-//		postRequest.setHeader(HttpHeaders.ACCEPT, "application/xml");
-//		postRequest.setHeader(HttpHeaders.CONTENT_LENGTH, "512");
-//		final String data = new JSONObject().put("title", "foo").put("body", "bar").put("userId", 1).toString();
-//		postRequest.setEntity(new StringEntity(data));
-//		final CloseableHttpResponse execute = HttpClients.createDefault().execute(postRequest);
-//		final InputStream content = execute.getEntity().getContent();
-//		new BufferedReader(new InputStreamReader(content)).lines().forEach(System.out::println);
-//	}
+	private static String getAuthorizationHeader(String date) throws Exception {
+		String privateKey = "<secrete_key>";
+		String publicKey = "<api_key>";
+		Mac hmacSHA256 = Mac.getInstance("HmacSHA256");
+		SecretKeySpec secretKeySpec = new SecretKeySpec(privateKey.getBytes(Charset.forName("UTF-8")), "HmacSHA256");
+		hmacSHA256.init(secretKeySpec);
+		StringBuilder data = new StringBuilder();
+		data.append("POST").append("\n");
+		data.append("application/json").append("\n");
+		data.append(date).append("\n");
+		data.append("<relative_url>").append("\n");
+		byte[] finalData = hmacSHA256.doFinal(data.toString().getBytes("UTF-8"));
+		String authorizationData = Base64.getEncoder().encodeToString(finalData);
+		return "<prefix>" + publicKey + ":" + authorizationData;
+	}
 }
