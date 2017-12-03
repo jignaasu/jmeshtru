@@ -8,6 +8,7 @@
 	<modules>
 		<module>nashorn</module>
 		<module>httpclient</module>
+		<module>restassured</module>
 	</modules>
 	<packaging>pom</packaging>
 	<properties>
