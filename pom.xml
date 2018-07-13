@@ -8,6 +8,8 @@
 	<modules>
 		<module>nashorn</module>
 		<module>httpclient</module>
+		<module>java10</module>
+		<module>protobuf</module>
 	</modules>
 	<packaging>pom</packaging>
 	<properties>
